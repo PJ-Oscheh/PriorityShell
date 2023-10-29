@@ -83,15 +83,15 @@ int main(void) {
         // if user types in "status" then display the background processes
         if(!strcmp(programAndPriority, "status\n")){
             printf("PID        Priority        Status        Program\n");
-
+            
             for (int i=0; i < 5; i++) {
-                if (status[i].PID == 0) {
+              if (status[i].PID != 0) {
                   printf("%d          %d               %s        %s\n"
                     ,status[i].PID
                     , status[i].priority
                     , status[i].status
                     , status[i].program);
-                }
+                } 
 
             }
             continue;
@@ -132,7 +132,12 @@ int main(void) {
 
         // if we're in the parent then we're in the shell still so just continue
         if(pid != 0){
-            //printf("[I'm parent, Child's PID %d] ", pid);
+            for (int i=0; i<5; i++) {
+              if (status[i].PID == 0) {
+                status[i].PID = pid;
+                break;
+              }
+            }
             continue;
         }
         // else we are in the child so we should create a new process with execve
