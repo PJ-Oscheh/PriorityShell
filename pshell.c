@@ -67,7 +67,10 @@ int main(void) {
 
     // the threads
     pthread_t threads[5];
-
+    
+  
+    int procStatus = -99;
+  
     // start shell
     while(1) {
         // Get program name and priority from user
@@ -82,18 +85,38 @@ int main(void) {
 
         // if user types in "status" then display the background processes
         if(!strcmp(programAndPriority, "status\n")){
-            printf("PID        Priority        Status        Program\n");
             
+            printf("PID        Priority        Status        Program\n");
             for (int i=0; i < 5; i++) {
+              
               if (status[i].PID != 0) {
-                  printf("%d          %d               %s        %s\n"
+                  waitpid(status[0].PID, &procStatus, WNOHANG);
+                  // If return -99, it's running or ready
+                  // If return 0, it's not running and should be removed from
+                  //  the list.
+                  
+                  if (procStatus == -99) {
+                    
+                    // TODO: Implement priority and ready state
+                    status[i].status = "Running";
+                    
+                    printf("%d     %d               %s        %s\n"
                     ,status[i].PID
                     , status[i].priority
                     , status[i].status
                     , status[i].program);
+                  }
+                  else if (procStatus == 0) {
+                    status[i].PID = 0;
+                    status[i].priority = 0;
+                    status[i].status = NULL;
+                    status[i].program = NULL;
+                  }
+                  
                 } 
 
             }
+            
             continue;
         }
 
