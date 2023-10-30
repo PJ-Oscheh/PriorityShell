@@ -34,6 +34,8 @@ struct processes{
     int priority;
     char* status;
     char* program;
+    int procStatus;
+    
 };
 
 struct paramForBg {
@@ -44,6 +46,7 @@ struct paramForBg theParams[1] = { {} };
 
 // creates a seperate processes using execev
 void* bgProc(void* arg) {
+  //printf("\n[We're in the thread]");
   struct paramForBg* new = (struct paramForBg*) arg;
 
   //TODO: If desired, we can remove these variables before submission.
@@ -69,14 +72,51 @@ int main(void) {
     pthread_t threads[5];
     
   
-    int procStatus = -99;
+    //int procStatus = -99;
+  
+    int priorityNum = -99;
+  
+    for (int i=0; i<5; i++) {
+      status[i].procStatus = -99;
+    }
   
     // start shell
     while(1) {
+        
+      
+        for (int i=0; i< BUFFER; i++) {
+          programAndPriority[i] = '\0';
+          name[i] = '\0';
+        }
+        priority = '\0';
+        priorityNum = 0;
+        
         // Get program name and priority from user
-
         printf("pshell:");
         fgets(programAndPriority, BUFFER, stdin);
+        // parses the name of the program and the priority number out of the
+        // user input
+        for (int i = 0; programAndPriority[i] != '\0'; i++) {
+            
+            if (programAndPriority[i] == ' ') {
+                name[i] = '\0';
+                // converts priority to an int
+                priority = programAndPriority[i + 1];
+              
+                // Set integer for priority
+                priorityNum = atoi(&priority);
+                
+                if (programAndPriority[i+2] != '\0') {
+                  programAndPriority[i+2] = '\0';
+                }
+                break;
+            }
+
+            name[i] = programAndPriority[i];
+        }
+        //printf("\n[Program and Priority: %s]",programAndPriority);
+        //printf("\n[Name: %s]", name);
+        //printf("\n[Priority: %d]", priorityNum);
 
         // if user types 0 then quit
         if (programAndPriority[0] == '0')
@@ -90,12 +130,13 @@ int main(void) {
             for (int i=0; i < 5; i++) {
               
               if (status[i].PID != 0) {
-                  waitpid(status[0].PID, &procStatus, WNOHANG);
+                  waitpid(status[i].PID, &status[i].procStatus, WNOHANG);
+                  printf("[Proc Status for %d is: %d]",status[i].PID,status[i].procStatus);
                   // If return -99, it's running or ready
                   // If return 0, it's not running and should be removed from
                   //  the list.
                   
-                  if (procStatus == -99) {
+                  if (status[i].procStatus == -99) {
                     
                     // TODO: Implement priority and ready state
                     status[i].status = "Running";
@@ -106,11 +147,12 @@ int main(void) {
                     , status[i].status
                     , status[i].program);
                   }
-                  else if (procStatus == 0) {
+                  else if (status[i].procStatus == 0) {
                     status[i].PID = 0;
                     status[i].priority = 0;
                     status[i].status = NULL;
                     status[i].program = NULL;
+                    status[i].procStatus = -99;
                   }
                   
                 } 
@@ -121,27 +163,16 @@ int main(void) {
         }
 
 
-        // parses the name of the program and the priority number out of the
-        // user input
-        for (int i = 0; programAndPriority[i] != '\0'; i++) {
-            if (programAndPriority[i] == ' ') {
-                name[i] = '\0';
-                priority = programAndPriority[i + 1];
-                break;
-            }
-
-            name[i] = programAndPriority[i];
-        }
+        
 
 
 
-        // converts priority to an int
-        int priorityNum = atoi(&priority);
+        
 
         // check if the priority is 1-3
         if (!(priorityNum == 1 | priorityNum == 2 | priorityNum == 3)) {
             printf("Error: Invalid priority\n");
-            continue;
+            //continue;
         }
 
         //*********************************************************************
@@ -157,6 +188,7 @@ int main(void) {
         if(pid != 0){
             for (int i=0; i<5; i++) {
               if (status[i].PID == 0) {
+                //printf("[I'm the parent]");
                 status[i].PID = pid;
                 break;
               }
@@ -165,11 +197,13 @@ int main(void) {
         }
         // else we are in the child so we should create a new process with execve
         else{
+            //printf("[I'm the child]");
             // find an empty space in the struct
             theParams[0].name = name;
             for (int i=0; i< 5; i++) {
               if (status[i].PID == 0) {
-                pthread_create (&threads[i], NULL, bgProc, theParams);
+                //printf("\n[%s]", name);
+                pthread_create(&threads[i], NULL, bgProc, theParams);
               }
               else if (i==5) {
                 printf("Too many processes are running. Please wait for one to \

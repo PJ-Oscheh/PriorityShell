@@ -3,6 +3,6 @@
 #include <unistd.h>
 
 int main(void) {
-  printf("bombs? you want it?\n");
+  printf("lampoil? you want it?\n");
   sleep(7);
 }
