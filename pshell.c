@@ -56,6 +56,18 @@ void* bgProc(void* arg) {
   return NULL;
 }
 
+//Return 1 if file exists, 0 if not
+int file_exists(const char* fileName) {
+  
+  FILE* filep = fopen(fileName, "r");
+  int fileExists = 0;
+  if (filep != NULL) {
+    fileExists = 1;
+    fclose(filep);
+  }
+  return fileExists;
+}
+
 int main(void) {
     // holds the input from the shell
     char programAndPriority[BUFFER];
@@ -177,14 +189,24 @@ int main(void) {
 
         //*********************************************************************
         // Now we are going to create the new process
-
-        int pid = fork();
-
-
+        
+        int pid = -99;
+        int check = -99;
+        
+        check = file_exists (name);
+        if (check == 1) {
+          pid = fork();
+        
+        
         //TODO: Set priorities (highest runs first), same priority, kill the
         // running proc and start the new one
-
+        
+        //FIXME: For some reason we can run 1 or 2 programs then nothing else
         // if we're in the parent then we're in the shell still so just continue
+        // 
+        // Status for programs that don't start return 139. This is kill signal
+        //  11, or SIGSEV (segment violation). This indicates somewhere there's
+        //  a memory violation in the program.
         if(pid != 0){
             for (int i=0; i<5; i++) {
               if (status[i].PID == 0) {
@@ -219,6 +241,7 @@ int main(void) {
               // child doesn't continue in the while loop, making another
               // pshell prompt
               exit(0);
+        }
         }
     }
 }
