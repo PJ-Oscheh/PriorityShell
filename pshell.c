@@ -143,7 +143,7 @@ int main(void) {
               
               if (status[i].PID != 0) {
                   waitpid(status[i].PID, &status[i].procStatus, WNOHANG);
-                  printf("[Proc Status for %d is: %d]",status[i].PID,status[i].procStatus);
+                  
                   // If return -99, it's running or ready
                   // If return 0, it's not running and should be removed from
                   //  the list.
@@ -162,8 +162,8 @@ int main(void) {
                   else if (status[i].procStatus == 0) {
                     status[i].PID = 0;
                     status[i].priority = 0;
-                    status[i].status = NULL;
-                    status[i].program = NULL;
+                    status[i].status = '\0';
+                    status[i].program = '\0';
                     status[i].procStatus = -99;
                   }
                   
@@ -173,13 +173,6 @@ int main(void) {
             
             continue;
         }
-
-
-        
-
-
-
-        
 
         // check if the priority is 1-3
         if (!(priorityNum == 1 | priorityNum == 2 | priorityNum == 3)) {
@@ -193,55 +186,66 @@ int main(void) {
         int pid = -99;
         int check = -99;
         
+        // Only create the new proc if the file name exists
         check = file_exists (name);
         if (check == 1) {
+          
           pid = fork();
-        
-        
-        //TODO: Set priorities (highest runs first), same priority, kill the
-        // running proc and start the new one
-        
-        //FIXME: For some reason we can run 1 or 2 programs then nothing else
-        // if we're in the parent then we're in the shell still so just continue
-        // 
-        // Status for programs that don't start return 139. This is kill signal
-        //  11, or SIGSEV (segment violation). This indicates somewhere there's
-        //  a memory violation in the program.
-        if(pid != 0){
-            for (int i=0; i<5; i++) {
-              if (status[i].PID == 0) {
-                //printf("[I'm the parent]");
-                status[i].PID = pid;
-                break;
-              }
-            }
-            continue;
-        }
-        // else we are in the child so we should create a new process with execve
-        else{
-            //printf("[I'm the child]");
-            // find an empty space in the struct
-            theParams[0].name = name;
-            for (int i=0; i< 5; i++) {
-              if (status[i].PID == 0) {
-                //printf("\n[%s]", name);
-                pthread_create(&threads[i], NULL, bgProc, theParams);
-              }
-              else if (i==5) {
-                printf("Too many processes are running. Please wait for one to \
-                  finish or kill one.\n");
-              }
-            }
-
+          //TODO: Remove me!
+          // The below test code shows the status of the program.
+          int testProcStatus = -99;
+          waitpid(pid, &testProcStatus, NULL);
+          printf("[Proc Status for %d is: %d]",pid,testProcStatus);
+          // End test code
+          
+          //TODO: Set priorities (highest runs first), same priority, kill the
+          // running proc and start the new one
+          
+          //FIXME: For some reason we can run 1 or 2 programs then nothing else
+          // if we're in the parent then we're in the shell still so just continue
+          // 
+          // Status for programs that don't start return 139. This is kill signal
+          //  11, or SIGSEV (segment violation). This indicates somewhere there's
+          //  a memory violation in the program.
+           
+          //Parent
+          if(pid != 0){
               for (int i=0; i<5; i++) {
-                pthread_join(threads[i], NULL);
+                if (status[i].PID == 0) {
+                  //printf("[I'm the parent]");
+                  status[i].PID = pid;
+                  break;
+                }
+              }
+              continue;
+          }
+          // else we are in the child so we should create a new process with execve
+          else{
+              //printf("[I'm the child]");
+              // find an empty space in the struct
+              theParams[0].name = name;
+              for (int i=0; i< 5; i++) {
+                if (status[i].PID == 0) {
+                  //printf("\n[%s]", name);
+                  pthread_create(&threads[i], NULL, bgProc, theParams);
+                }
+                else if (i==5) {
+                  printf("Too many processes are running. Please wait for one to \
+                    finish or kill one.\n");
+                }
               }
 
-              // After the program finishes running on its thread, exit so the
-              // child doesn't continue in the while loop, making another
-              // pshell prompt
-              exit(0);
-        }
+                for (int i=0; i<5; i++) {
+                  pthread_join(threads[i], NULL);
+                }
+
+                // After the program finishes running on its thread, exit so the
+                // child doesn't continue in the while loop, making another
+                // pshell prompt
+                
+                exit(0);
+                
+          }
         }
     }
 }
