@@ -40,15 +40,28 @@ struct processes{
 
 struct procMonitorParams {
   int pid;
+  pthread_t* thread;
+  struct processes* status;
 };
 
 struct procMonitorParams pmp[1] = { {} };
 
+pthread_mutex_t lock;
+
 // Monitor the child (The Babysitter)
 void* procMonitor(void* arg) {
-  struct paramForBg* new = (struct paramForBg*) arg;
+  pthread_mutex_lock(&lock);
+  struct procMonitorParams* params = (struct procMonitorParams*) arg;
+  int pid = params->pid;
+  pthread_t* thread = params->thread;
+  struct processes* statusStruct = params->status;
+  pthread_mutex_unlock(&lock);
 
-  //TODO: If desired, we can remove these variables before submission.
+  int status = -99;
+  printf("Process %d is running\n",params->pid);
+  waitpid(pid, &status,0);
+  statusStruct->PID = 0;
+  pthread_detach(*thread);
   return NULL;
 }
 
@@ -79,8 +92,6 @@ int main(void) {
     // the threads
     pthread_t threads[5];
     
-  
-    //int procStatus = -99;
   
     int priorityNum = -99;
   
@@ -122,9 +133,6 @@ int main(void) {
 
             name[i] = programAndPriority[i];
         }
-        //printf("\n[Program and Priority: %s]",programAndPriority);
-        //printf("\n[Name: %s]", name);
-        //printf("\n[Priority: %d]", priorityNum);
 
         // if user types 0 then quit
         if (programAndPriority[0] == '0')
@@ -158,8 +166,8 @@ int main(void) {
                   else if (status[i].procStatus == 0) {
                     status[i].PID = 0;
                     status[i].priority = 0;
-                    status[i].status = '\0';
-                    status[i].program = '\0';
+                    status[i].status = "\0";
+                    status[i].program = "\0";
                     status[i].procStatus = -99;
                   }
                   
@@ -181,7 +189,7 @@ int main(void) {
         
         int pid = -99;
         int check = -99;
-        
+
         // Only create the new proc if the file name exists
         check = file_exists (name);
         if (check == 1) {
@@ -198,24 +206,33 @@ int main(void) {
            
           // Parent; hire the babysitter
           if(pid != 0){
-              //printf("[I'm parent, Child's PID %d] ", pid);
               for (int i=0; i<5; i++) {
                 if (status[i].PID == 0) {
+                  status[i].PID = pid;
+                  pmp[0].pid = pid;
+                  pmp[0].thread = &threads[i];
+                  pmp[0].status = &status[i];
                   pthread_create(&threads[i], NULL, procMonitor, pmp);
+                  printf("Using thread %d\n",i);
                   break;
                 }
-                else if (i == 5) {
-                  printf("Too many processes are running. Please wait for one to \
-                    finish or kill one. \n");
+                else if (i == 4) {
+                  printf("Too many processes are running. Please wait for one "
+                    "to finish or kill one. \n");
+                  continue;
                 }
               }
               continue;
           }
-          // Child; replace image using execve
+
+
           else{
+
               char* const* argv;
               char* const* envp;
               execve(name, argv, envp);
+
+
           }
         }
     }
