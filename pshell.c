@@ -38,21 +38,17 @@ struct processes{
     
 };
 
-struct paramForBg {
-  char* name;
+struct procMonitorParams {
+  int pid;
 };
 
-struct paramForBg theParams[1] = { {} };
+struct procMonitorParams pmp[1] = { {} };
 
-// creates a seperate processes using execev
-void* bgProc(void* arg) {
-  //printf("\n[We're in the thread]");
+// Monitor the child (The Babysitter)
+void* procMonitor(void* arg) {
   struct paramForBg* new = (struct paramForBg*) arg;
 
   //TODO: If desired, we can remove these variables before submission.
-  char* const* argv;
-  char* const* envp;
-  execve(new->name, argv, envp);
   return NULL;
 }
 
@@ -194,57 +190,32 @@ int main(void) {
           //TODO: Remove me!
           // The below test code shows the status of the program.
           int testProcStatus = -99;
-          waitpid(pid, &testProcStatus, NULL);
-          printf("[Proc Status for %d is: %d]",pid,testProcStatus);
+          //printf("[Proc Status for %d is: %d]",pid,testProcStatus);
           // End test code
           
           //TODO: Set priorities (highest runs first), same priority, kill the
           // running proc and start the new one
-          
-          //FIXME: For some reason we can run 1 or 2 programs then nothing else
-          // if we're in the parent then we're in the shell still so just continue
-          // 
-          // Status for programs that don't start return 139. This is kill signal
-          //  11, or SIGSEV (segment violation). This indicates somewhere there's
-          //  a memory violation in the program.
            
-          //Parent
+          // Parent; hire the babysitter
           if(pid != 0){
+              //printf("[I'm parent, Child's PID %d] ", pid);
               for (int i=0; i<5; i++) {
                 if (status[i].PID == 0) {
-                  //printf("[I'm the parent]");
-                  status[i].PID = pid;
+                  pthread_create(&threads[i], NULL, procMonitor, pmp);
                   break;
+                }
+                else if (i == 5) {
+                  printf("Too many processes are running. Please wait for one to \
+                    finish or kill one. \n");
                 }
               }
               continue;
           }
-          // else we are in the child so we should create a new process with execve
+          // Child; replace image using execve
           else{
-              //printf("[I'm the child]");
-              // find an empty space in the struct
-              theParams[0].name = name;
-              for (int i=0; i< 5; i++) {
-                if (status[i].PID == 0) {
-                  //printf("\n[%s]", name);
-                  pthread_create(&threads[i], NULL, bgProc, theParams);
-                }
-                else if (i==5) {
-                  printf("Too many processes are running. Please wait for one to \
-                    finish or kill one.\n");
-                }
-              }
-
-                for (int i=0; i<5; i++) {
-                  pthread_join(threads[i], NULL);
-                }
-
-                // After the program finishes running on its thread, exit so the
-                // child doesn't continue in the while loop, making another
-                // pshell prompt
-                
-                exit(0);
-                
+              char* const* argv;
+              char* const* envp;
+              execve(name, argv, envp);
           }
         }
     }
