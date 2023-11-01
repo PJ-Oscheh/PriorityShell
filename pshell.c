@@ -189,50 +189,53 @@ int main(void) {
         
         int pid = -99;
         int check = -99;
-
+        int doRun = 0;
+        int slot = -99;
         // Only create the new proc if the file name exists
         check = file_exists (name);
         if (check == 1) {
           
-          pid = fork();
-          //TODO: Remove me!
-          // The below test code shows the status of the program.
-          int testProcStatus = -99;
-          //printf("[Proc Status for %d is: %d]",pid,testProcStatus);
-          // End test code
-          
-          //TODO: Set priorities (highest runs first), same priority, kill the
-          // running proc and start the new one
-           
-          // Parent; hire the babysitter
-          if(pid != 0){
-              for (int i=0; i<5; i++) {
+          // See where to run the process. If all 5 slots are taken,
+          // don't run it.
+          for (int i=0; i<5; i++) {
                 if (status[i].PID == 0) {
-                  status[i].PID = pid;
-                  pmp[0].pid = pid;
-                  pmp[0].thread = &threads[i];
-                  pmp[0].status = &status[i];
-                  pthread_create(&threads[i], NULL, procMonitor, pmp);
+                  slot = i;
                   printf("Using thread %d\n",i);
+                  doRun = 1;
                   break;
                 }
                 else if (i == 4) {
+                  doRun = 0;
                   printf("Too many processes are running. Please wait for one "
                     "to finish or kill one. \n");
-                  continue;
                 }
-              }
-              continue;
           }
+          if (doRun) {
+            pid = fork();
+
+            //TODO: Set priorities (highest runs first), same priority, kill the
+            // running proc and start the new one
+
+            // Parent; hire the babysitter
+            if(pid != 0){
+                printf("Once again, using thread %d\n", slot);
+                status[slot].PID = pid;
+                pmp[0].pid = pid;
+                pmp[0].thread = &threads[slot];
+                pmp[0].status = &status[slot];
+                pthread_create(&threads[slot], NULL, procMonitor, pmp);
+                continue;
+            }
 
 
-          else{
+            else{
 
-              char* const* argv;
-              char* const* envp;
-              execve(name, argv, envp);
+                char* const* argv;
+                char* const* envp;
+                execve(name, argv, envp);
 
 
+            }
           }
         }
     }
