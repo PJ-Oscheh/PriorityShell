@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #define BUFFER 32
 
+// By PJ Oschmann, Lukas Mccain, Anthony Kacki
 
 // create a shell that allows a user to run programs and specify priority of
 // them
@@ -47,6 +48,12 @@ struct procMonitorParams pmp[1] = { {} };
 
 pthread_mutex_t lock;
 
+// Strings for running and ready
+char* running = "Running";
+char* ready = "Ready";
+
+
+
 // Monitor the child (The Babysitter)
 void* procMonitor(void* arg) {
   pthread_mutex_lock(&lock);
@@ -81,6 +88,10 @@ int file_exists(const char* fileName) {
 
 
 int main(void) {
+
+    // String set for current status
+    char* statusToSet = "NOSTATUS";
+
     // holds the input from the shell
     char programAndPriority[BUFFER];
 
@@ -113,7 +124,6 @@ int main(void) {
         // Get program name and priority from user
         printf("pshell:");
         fgets(programAndPriority, BUFFER, stdin);
-        printf("Prog: %s\n", status[0].program);
         // parses the name of the program and the priority number out of the
         // user input
         for (int i = 0; programAndPriority[i] != '\0'; i++) {
@@ -149,7 +159,6 @@ int main(void) {
             for (int i=0; i < 5; i++) {
               if (status[i].PID != 0) {
                   // TODO: Implement priority and ready state
-                  status[i].status = "Running";
 
                   printf("%d     %d               %s        %s\n"
                   ,status[i].PID
@@ -177,10 +186,79 @@ int main(void) {
         int check = -99;
         int doRun = 0;
         int slot = -99;
+        int begin = 0;
+
         // Only create the new proc if the file name exists
         check = file_exists (name);
         if (check == 1) {
+          int emptyNum = 0;
+
+          // Anything in chart?
+          for (int i=0; i<5; i++) {
+            // Everything empty?
+            if (status[i].PID == 0) {
+              emptyNum++;
+            }
+          }
+          // So it is empty? Just start the programs
+          if (emptyNum == 5) {
+            statusToSet = running;
+            begin = 1;
+          }
+          // Something's there? Gotta compare
+          else {
+            begin = 0;
+          }
           
+          // TODO: There are probably bugs with priority
+          // TODO: Gotta continue it!
+
+          // First, see if any of same priority are going
+          // TODO: Check if higher is going to determine start or not
+          if (begin == 0) {
+            for (int i=0; i<5; i++) {
+              // First, see if any are equal that we can stop
+              if (priorityNum == status[i].priority) {
+                status[i].status = ready;
+                statusToSet = running;
+                kill(status[i].PID, SIGSTOP);
+                printf("She's equal\n");
+                begin = 1;
+                break;
+              }
+            }
+          }
+
+          // No eq priority? See if my priority is less than something in chart
+          if (begin == 0) {
+
+            for (int i=0; i<5; i++) {
+              // No dice? Find something smaller
+              if (priorityNum < status[i].priority) {
+                printf("She's less :(\n");
+                statusToSet = ready;
+                begin = 1;
+                break;
+              }
+            }
+          }
+
+          // Next, see if my priority is higher than others
+          if (begin == 0) {
+            for (int i=0; i<5; i++) {
+              if (priorityNum > status[i].priority) {
+                printf("She's high af\n");
+                status[i].status = ready;
+                statusToSet = running;
+                kill(status[i].PID, SIGSTOP);
+                begin = 1;
+                break;
+              }
+            }
+          }
+
+
+
           // See where to run the process. If all 5 slots are taken,
           // don't run it.
           for (int i=0; i<5; i++) {
@@ -203,29 +281,6 @@ int main(void) {
           // If doRun is true, fork and execve.
           if (doRun) {
 
-            // See if we can find
-
-            // 1. See if something in chart
-            for (int i=0; i<5; i++) {
-              if ((strcmp(status[i].status, "Running") == 0)) {
-                if (status[i].priority >= priorityNum) {
-                  //kill(SIGSTOP);
-                }
-              }
-            }
-
-            // Check for empty chart
-            /*
-            for (int i=0; i<5; i++) {
-              if (i==5 && status[i].PID == 0) {
-                // It's empty!'
-              }
-            }
-             */
-
-
-
-
             pid = fork();
 
             //TODO: Set priorities (highest runs first), same priority, kill the
@@ -235,7 +290,7 @@ int main(void) {
             if(pid > 0){
                 status[slot].PID = pid;
                 status[slot].priority = priorityNum;
-                printf("Name before: %s\n", status[slot].program);
+                status[slot].status = statusToSet;
                 for (int i=0; i< BUFFER; i++) {
                   if (name[i] == '\0') {
                     break;
@@ -244,7 +299,6 @@ int main(void) {
                 }
                 pmp[0].pid = pid;
                 pmp[0].thread = &threads[slot];
-                printf("Name after: %s\n", status[slot].program);
                 pmp[0].status = &status[slot];
                 pthread_create(&threads[slot], NULL, procMonitor, pmp);
 
