@@ -38,6 +38,8 @@ struct processes{
     
 };
 
+struct processes status[5] = { {}, {}, {}, {}, {} };
+
 struct procMonitorParams {
   int pid;
   pthread_t* thread;
@@ -56,6 +58,7 @@ char* ready = "Ready";
 
 // Monitor the child (The Babysitter)
 void* procMonitor(void* arg) {
+  // Get values
   pthread_mutex_lock(&lock);
   struct procMonitorParams* params = (struct procMonitorParams*) arg;
   int pid = params->pid;
@@ -63,12 +66,24 @@ void* procMonitor(void* arg) {
   struct processes* statusStruct = params->status;
   pthread_mutex_unlock(&lock);
 
-  int status = -99;
-  waitpid(pid, &status,0);
+  // Reset status struct to initials
+  int statusCode = -99;
+  waitpid(pid, &statusCode,0);
   statusStruct->PID = 0;
   statusStruct->priority = 0;
   statusStruct->status = "\0";
   //statusStruct->program ="\0";
+
+  // Find the greatest priority and resume
+  int greatest = status[0].priority;
+  for (int i=1; i<5; i++) {
+    if (status[i].priority > status[i-1].priority) {
+      greatest = i;
+    }
+  }
+
+  // Continue who ever has greatest priority
+  kill(status[greatest].PID, SIGCONT);
   pthread_detach(*thread);
   return NULL;
 }
@@ -101,7 +116,7 @@ int main(void) {
     // holds the priority of that program
     char priority = 0;
 
-    struct processes status[5] = { {}, {}, {}, {}, {} };
+
 
     // the threads
     pthread_t threads[5];
