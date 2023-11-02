@@ -34,7 +34,6 @@ struct processes{
     int priority;
     char* status;
     char* program;
-    int procStatus;
     
 };
 
@@ -58,9 +57,11 @@ void* procMonitor(void* arg) {
   pthread_mutex_unlock(&lock);
 
   int status = -99;
-  printf("Process %d is running\n",params->pid);
   waitpid(pid, &status,0);
   statusStruct->PID = 0;
+  statusStruct->priority = 0;
+  statusStruct->status = "\0";
+  statusStruct->program ="\0";
   pthread_detach(*thread);
   return NULL;
 }
@@ -76,6 +77,8 @@ int file_exists(const char* fileName) {
   }
   return fileExists;
 }
+
+
 
 int main(void) {
     // holds the input from the shell
@@ -95,9 +98,6 @@ int main(void) {
   
     int priorityNum = -99;
   
-    for (int i=0; i<5; i++) {
-      status[i].procStatus = -99;
-    }
   
     // start shell
     while(1) {
@@ -113,6 +113,7 @@ int main(void) {
         // Get program name and priority from user
         printf("pshell:");
         fgets(programAndPriority, BUFFER, stdin);
+
         // parses the name of the program and the priority number out of the
         // user input
         for (int i = 0; programAndPriority[i] != '\0'; i++) {
@@ -134,44 +135,36 @@ int main(void) {
             name[i] = programAndPriority[i];
         }
 
+
+
         // if user types 0 then quit
         if (programAndPriority[0] == '0')
             exit(0);
 
+        //printf("Program: %s\n", status[0].program);
 
         // if user types in "status" then display the background processes
         if(!strcmp(programAndPriority, "status\n")){
-            
             printf("PID        Priority        Status        Program\n");
             for (int i=0; i < 5; i++) {
-              
               if (status[i].PID != 0) {
-                  waitpid(status[i].PID, &status[i].procStatus, WNOHANG);
+                  //waitpid(status[i].PID, &status[i].procStatus, WNOHANG);
                   
                   // If return -99, it's running or ready
                   // If return 0, it's not running and should be removed from
                   //  the list.
-                  
-                  if (status[i].procStatus == -99) {
-                    
-                    // TODO: Implement priority and ready state
-                    status[i].status = "Running";
-                    
-                    printf("%d     %d               %s        %s\n"
-                    ,status[i].PID
-                    , status[i].priority
-                    , status[i].status
-                    , status[i].program);
-                  }
-                  else if (status[i].procStatus == 0) {
-                    status[i].PID = 0;
-                    status[i].priority = 0;
-                    status[i].status = "\0";
-                    status[i].program = "\0";
-                    status[i].procStatus = -99;
-                  }
-                  
-                } 
+
+                  // TODO: Implement priority and ready state
+                  status[i].status = "Running";
+
+                  printf("%d     %d               %s        %s\n"
+                  ,status[i].PID
+                  , status[i].priority
+                  , status[i].status
+                  , status[i].program);
+
+
+                }
 
             }
             
@@ -198,18 +191,23 @@ int main(void) {
           // See where to run the process. If all 5 slots are taken,
           // don't run it.
           for (int i=0; i<5; i++) {
+
+                // Slot found? Run.
                 if (status[i].PID == 0) {
                   slot = i;
-                  printf("Using thread %d\n",i);
                   doRun = 1;
                   break;
                 }
+
+                // No open slots? Don't run.'
                 else if (i == 4) {
                   doRun = 0;
                   printf("Too many processes are running. Please wait for one "
                     "to finish or kill one. \n");
                 }
           }
+
+          // If doRun is true, fork and execve.
           if (doRun) {
             pid = fork();
 
@@ -218,12 +216,14 @@ int main(void) {
 
             // Parent; hire the babysitter
             if(pid != 0){
-                printf("Once again, using thread %d\n", slot);
                 status[slot].PID = pid;
+                status[slot].priority = priorityNum;
+                status[slot].program = name;
                 pmp[0].pid = pid;
                 pmp[0].thread = &threads[slot];
                 pmp[0].status = &status[slot];
                 pthread_create(&threads[slot], NULL, procMonitor, pmp);
+
                 continue;
             }
 
@@ -237,6 +237,9 @@ int main(void) {
 
             }
           }
+        }
+        else {
+          printf("Error: Program not found.\n");
         }
     }
 }
