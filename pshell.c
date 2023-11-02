@@ -33,7 +33,7 @@ struct processes{
     int PID;
     int priority;
     char* status;
-    char* program;
+    char program[BUFFER];
     
 };
 
@@ -61,7 +61,7 @@ void* procMonitor(void* arg) {
   statusStruct->PID = 0;
   statusStruct->priority = 0;
   statusStruct->status = "\0";
-  statusStruct->program ="\0";
+  //statusStruct->program ="\0";
   pthread_detach(*thread);
   return NULL;
 }
@@ -113,7 +113,7 @@ int main(void) {
         // Get program name and priority from user
         printf("pshell:");
         fgets(programAndPriority, BUFFER, stdin);
-
+        printf("Prog: %s\n", status[0].program);
         // parses the name of the program and the priority number out of the
         // user input
         for (int i = 0; programAndPriority[i] != '\0'; i++) {
@@ -148,12 +148,6 @@ int main(void) {
             printf("PID        Priority        Status        Program\n");
             for (int i=0; i < 5; i++) {
               if (status[i].PID != 0) {
-                  //waitpid(status[i].PID, &status[i].procStatus, WNOHANG);
-                  
-                  // If return -99, it's running or ready
-                  // If return 0, it's not running and should be removed from
-                  //  the list.
-
                   // TODO: Implement priority and ready state
                   status[i].status = "Running";
 
@@ -162,7 +156,6 @@ int main(void) {
                   , status[i].priority
                   , status[i].status
                   , status[i].program);
-
 
                 }
 
@@ -209,18 +202,49 @@ int main(void) {
 
           // If doRun is true, fork and execve.
           if (doRun) {
+
+            // See if we can find
+
+            // 1. See if something in chart
+            for (int i=0; i<5; i++) {
+              if ((strcmp(status[i].status, "Running") == 0)) {
+                if (status[i].priority >= priorityNum) {
+                  //kill(SIGSTOP);
+                }
+              }
+            }
+
+            // Check for empty chart
+            /*
+            for (int i=0; i<5; i++) {
+              if (i==5 && status[i].PID == 0) {
+                // It's empty!'
+              }
+            }
+             */
+
+
+
+
             pid = fork();
 
             //TODO: Set priorities (highest runs first), same priority, kill the
             // running proc and start the new one
 
             // Parent; hire the babysitter
-            if(pid != 0){
+            if(pid > 0){
                 status[slot].PID = pid;
                 status[slot].priority = priorityNum;
-                status[slot].program = name;
+                printf("Name before: %s\n", status[slot].program);
+                for (int i=0; i< BUFFER; i++) {
+                  if (name[i] == '\0') {
+                    break;
+                  }
+                  status[slot].program[i] = name[i];
+                }
                 pmp[0].pid = pid;
                 pmp[0].thread = &threads[slot];
+                printf("Name after: %s\n", status[slot].program);
                 pmp[0].status = &status[slot];
                 pthread_create(&threads[slot], NULL, procMonitor, pmp);
 
