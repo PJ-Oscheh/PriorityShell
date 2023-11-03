@@ -65,30 +65,39 @@ void* procMonitor(void* arg) {
   int pid = params->pid;
   pthread_t* thread = params->thread;
   struct processes* statusStruct = params->status;
+  statusStruct->status = running;
   pthread_mutex_unlock(&params_lock);
-
-  // Reset status struct to initials
   int statusCode = -99;
   waitpid(pid, &statusCode,0);
-  statusStruct->PID = 0;
-  statusStruct->priority = 0;
-  statusStruct->status = "\0";
-  //statusStruct->program ="\0";
-
   // Find the greatest priority and resume
   pthread_mutex_lock(&sigcont_lock);
   int greatest = status[0].priority;
+  //printf("greatest 0 is %s\n", status[0].program);
   for (int i=1; i<5; i++) {
-    if (status[i].priority > status[i-1].priority) {
+    //printf("I found %s with priority %d!\n", status[i].program, status[i].priority);
+    if (status[i].priority > greatest) {
       greatest = i;
     }
   }
 
   // Update status
   status[greatest].status = running;
+  //printf("I choose %s!\n", status[greatest].program);
   // Continue who ever has greatest priority
   kill(status[greatest].PID, SIGCONT);
   pthread_mutex_unlock(&sigcont_lock);
+
+  // Reset status struct to initials
+  statusStruct->PID = 0;
+  statusStruct->priority = 0;
+  statusStruct->status = "\0";
+  for (int i=0; i<BUFFER; i++) {
+    if (statusStruct->program[i] == '\0') {
+      break;
+    }
+    statusStruct->program[i] = '\0';
+  }
+
   pthread_detach(*thread);
   return NULL;
 }
@@ -222,7 +231,7 @@ int main(void) {
           }
           // So it is empty? Just start the programs
           if (emptyNum == 5) {
-            statusToSet = running;
+            //statusToSet = running;
             begin = 1;
           }
           // Something's there? Gotta compare
@@ -239,9 +248,10 @@ int main(void) {
             for (int i=0; i<5; i++) {
               // First, see if any are equal that we can stop
               if (priorityNum == status[i].priority) {
-                status[i].status = ready;
-                statusToSet = running;
+                //status[i].status = ready;
+                //statusToSet = running;
                 kill(status[i].PID, SIGSTOP);
+                printf("Stopping %s\n", status[i].program);
                 printf("She's equal\n");
                 begin = 1;
                 break;
@@ -256,7 +266,7 @@ int main(void) {
               // No dice? Find something smaller
               if (priorityNum < status[i].priority) {
                 printf("She's less :(\n");
-                statusToSet = ready;
+                //statusToSet = ready;
                 begin = 1;
                 break;
               }
@@ -269,8 +279,8 @@ int main(void) {
               if (priorityNum > status[i].priority) {
                 printf("She's high af\n");
                 status[i].status = ready;
-                statusToSet = running;
                 kill(status[i].PID, SIGSTOP);
+                printf("Stopping %s\n", status[i].program);
                 begin = 1;
                 break;
               }
